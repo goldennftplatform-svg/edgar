@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   FileText, Clock, TrendingUp, AlertCircle, ArrowRight, ExternalLink,
+  RefreshCw, Wifi, WifiOff,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -20,7 +21,10 @@ interface Filing {
 
 export default function FilingIngest() {
   const [filings, setFilings] = useState<Filing[]>([]);
+  const [source, setSource] = useState<"edgar" | "mock" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastFetch, setLastFetch] = useState<string | null>(null);
   const [selectedFiling, setSelectedFiling] = useState<Filing | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -28,16 +32,17 @@ export default function FilingIngest() {
     try {
       const res = await fetch("/api/filing-pulse");
       const data = await res.json();
-      if (data.filings) {
-        setFilings(data.filings);
-      }
-    } catch { /* */ }
+      setFilings(data.filings || []);
+      setSource(data.source);
+      setError(data.error || null);
+      setLastFetch(new Date().toLocaleTimeString());
+    } catch (e) { setError(String(e)); }
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchFilings(); }, []);
   useEffect(() => {
-    fetchFilings();
-    intervalRef.current = setInterval(fetchFilings, 20000);
+    intervalRef.current = setInterval(fetchFilings, 30000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchFilings]);
 
@@ -65,25 +70,44 @@ export default function FilingIngest() {
           <span className="text-sm font-semibold">EDGAR Feed</span>
           <span className="text-[10px] font-mono text-zinc-500">{filings.length} filings</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[10px] font-mono text-zinc-500">live</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            {source === "edgar" ? (
+              <Wifi className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-amber-400" />
+            )}
+            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : "text-amber-400"}`}>
+              {source === "edgar" ? "LIVE" : "FALLBACK"}
+            </span>
+          </div>
+          {lastFetch && <span className="text-[9px] font-mono text-zinc-600">fetched {lastFetch}</span>}
+          <button
+            onClick={fetchFilings}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono bg-emerald-500/15 text-emerald-300 rounded border border-emerald-500/20 hover:bg-emerald-500/25 disabled:opacity-40 transition-colors"
+          >
+            {loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {loading ? "loading..." : "refresh"}
+          </button>
         </div>
       </div>
 
+      {error && (
+        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+          <p className="text-[10px] font-mono text-amber-400">⚠ {error}</p>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
+        {loading && filings.length === 0 && (
           <div className="p-8 text-center text-zinc-500 text-sm">
-            <Clock className="w-6 h-6 mx-auto mb-2 animate-spin text-zinc-600" />
+            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin text-zinc-600" />
             Connecting to EDGAR...
           </div>
-        ) : filings.length === 0 ? (
-          <div className="p-8 text-center text-zinc-500 text-sm">
-            <FileText className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
-            <p className="font-medium mb-1">No filings found</p>
-            <p className="text-xs text-zinc-600">Waiting for new SEC filings...</p>
-          </div>
-        ) : (
+        )}
+
+        {filings.length > 0 && (
           <div className="divide-y divide-zinc-800/50">
             {filings.map((filing) => {
               const isSelected = selectedFiling?.id === filing.id;
@@ -195,14 +219,16 @@ export default function FilingIngest() {
         )}
       </div>
       
-      <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-2">
-          <ArrowRight className="w-3 h-3 text-zinc-500" />
-          <span className="text-[10px] font-mono text-zinc-500">
-            Feed → Magma Analysis → Market Generation
-          </span>
+      {filings.length > 0 && (
+        <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/50">
+          <div className="flex items-center gap-2">
+            <ArrowRight className="w-3 h-3 text-zinc-500" />
+            <span className="text-[10px] font-mono text-zinc-500">
+              Feed → Magma Analysis → Market Generation
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

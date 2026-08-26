@@ -20,11 +20,11 @@ interface Alert {
 const alertHistory: Alert[] = [];
 
 export async function GET() {
-  const filings = await fetchFilingPulse(15);
+  const result = await fetchFilingPulse(15);
   
   const newAlerts: Alert[] = [];
   
-  for (const filing of filings.slice(0, 5)) {
+  for (const filing of result.filings.slice(0, 5)) {
     if (filing.impactScore < 30) continue;
     
     const existingAlert = alertHistory.find((a) => a.filing?.type === filing.type && a.filing?.company === filing.company);
@@ -91,7 +91,7 @@ export async function GET() {
   
   const limitedHistory = alertHistory.slice(0, 50);
   
-  return Response.json({ newAlerts, history: limitedHistory });
+  return Response.json({ newAlerts, history: limitedHistory, source: result.source });
 }
 
 export async function POST(request: Request) {

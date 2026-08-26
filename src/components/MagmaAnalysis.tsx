@@ -2,29 +2,29 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  FileText, Clock, TrendingUp, AlertCircle, Loader2, ChevronDown, ChevronRight,
+  FileText, Clock, TrendingUp, AlertCircle, ChevronDown, ChevronRight,
+  RefreshCw, Zap, Wifi, WifiOff,
 } from "lucide-react";
-import type { FilingIntelligence, GeneratedMarket } from "@/lib/magma";
+import type { FilingIntelligence } from "@/lib/magma";
 import { formatDistanceToNow } from "date-fns";
 
 export default function MagmaAnalysis() {
   const [filings, setFilings] = useState<FilingIntelligence[]>([]);
-  const [processing, setProcessing] = useState<number | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [source, setSource] = useState<"edgar" | "mock" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [scanRunning, setScanRunning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const runScan = useCallback(async () => {
     if (scanRunning) return;
     setScanRunning(true);
     try {
-      const [fRes, aRes] = await Promise.all([
-        fetch("/api/filing-pulse"),
-        fetch("/api/ai-scan"),
-      ]);
-      const filingsData = await fRes.json();
+      const aRes = await fetch("/api/ai-scan");
       const analysisData = await aRes.json();
+      setSource(analysisData.source);
+      setError(analysisData.error || null);
       if (analysisData.analyses?.length > 0) {
         setFilings(analysisData.analyses.map((a: Record<string, unknown>) => ({
           filingId: a.filingId,
@@ -44,15 +44,15 @@ export default function MagmaAnalysis() {
         } as FilingIntelligence)));
       }
       setLastScan(new Date().toLocaleTimeString());
-    } catch { /* */ }
+    } catch (e) { setError(String(e)); }
     setScanRunning(false);
   }, [scanRunning]);
 
+  useEffect(() => { runScan(); }, []);
   useEffect(() => {
-    runScan();
-    intervalRef.current = setInterval(runScan, 45000);
+    intervalRef.current = setInterval(runScan, 60000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
+  }, [runScan]);
 
   function toggleExpand(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -78,29 +78,44 @@ export default function MagmaAnalysis() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+          <div className={`w-2 h-2 rounded-full ${source === "edgar" ? "bg-emerald-400 animate-pulse" : source === "mock" ? "bg-amber-400" : "bg-zinc-600"}`} />
           <span className="text-sm font-semibold">Magma Analysis</span>
-          <span className="text-[10px] font-mono text-zinc-500">{filings.length} filings analyzed</span>
+          <span className="text-[10px] font-mono text-zinc-500">{filings.length} analyzed</span>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            {source === "edgar" ? (
+              <Wifi className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-amber-400" />
+            )}
+            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : "text-amber-400"}`}>
+              {source === "edgar" ? "LIVE" : "FALLBACK"}
+            </span>
+          </div>
           {lastScan && <span className="text-[9px] font-mono text-zinc-600">scanned {lastScan}</span>}
           <button
             onClick={runScan}
             disabled={scanRunning}
             className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono bg-violet-500/15 text-violet-300 rounded border border-violet-500/20 hover:bg-violet-500/25 disabled:opacity-40 transition-colors"
           >
-            {scanRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-            {scanRunning ? "analyzing..." : "run scan"}
+            {scanRunning ? <Clock className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {scanRunning ? "analyzing..." : "rescan"}
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+          <p className="text-[10px] font-mono text-amber-400">⚠ {error}</p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {filings.length === 0 && !scanRunning && (
           <div className="p-8 text-center text-zinc-500 text-sm">
             <FileText className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
-            <p className="font-medium mb-1">No filings analyzed yet</p>
-            <p className="text-xs text-zinc-600">Click &quot;run scan&quot; to analyze SEC filings with Magma</p>
+            <p className="font-medium mb-1">Analyzing filings...</p>
           </div>
         )}
 
@@ -170,7 +185,25 @@ export default function MagmaAnalysis() {
                       <p className="text-[10px] font-mono text-zinc-500 mb-1.5 uppercase tracking-wider">Generated Markets</p>
                       <div className="space-y-2">
                         {fi.generatedMarkets.map((market) => (
-                          <GeneratedMarketCard key={market.id} market={market} />
+                          <div key={market.id} className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg">
+                            <p className="text-[11px] font-medium text-zinc-200 leading-snug mb-2">{market.question}</p>
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500/70 rounded-full" style={{ width: `${Math.round(market.yesInitial * 100)}%` }} />
+                              </div>
+                              <div className="flex items-center gap-2 text-[9px] font-mono">
+                                <span className="text-emerald-400">YES {Math.round(market.yesInitial * 100)}%</span>
+                                <span className="text-zinc-600">|</span>
+                                <span className="text-red-400">NO {Math.round(market.noInitial * 100)}%</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-500">
+                              <span className="px-1.5 py-0.5 bg-zinc-800 rounded">{market.category}</span>
+                              <span>{market.timeHorizon} horizon</span>
+                              <span>confidence {Math.round(market.confidenceFromFiling * 100)}%</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">{market.reasoning}</p>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -181,32 +214,6 @@ export default function MagmaAnalysis() {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function GeneratedMarketCard({ market }: { market: GeneratedMarket }) {
-  const confidence = Math.round(market.confidenceFromFiling * 100);
-  const yesPct = Math.round(market.yesInitial * 100);
-  return (
-    <div className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg">
-      <p className="text-[11px] font-medium text-zinc-200 leading-snug mb-2">{market.question}</p>
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500/70 rounded-full" style={{ width: `${yesPct}%` }} />
-        </div>
-        <div className="flex items-center gap-2 text-[9px] font-mono">
-          <span className="text-emerald-400">YES {yesPct}%</span>
-          <span className="text-zinc-600">|</span>
-          <span className="text-red-400">NO {100 - yesPct}%</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-500">
-        <span className="px-1.5 py-0.5 bg-zinc-800 rounded">{market.category}</span>
-        <span>{market.timeHorizon} horizon</span>
-        <span>confidence {confidence}%</span>
-      </div>
-      <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">{market.reasoning}</p>
     </div>
   );
 }

@@ -3,6 +3,6 @@ import { fetchFilingPulse } from "@/lib/edgar";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const filings = await fetchFilingPulse(20);
-  return Response.json({ filings });
+  const result = await fetchFilingPulse(20);
+  return Response.json(result);
 }

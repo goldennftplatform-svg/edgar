@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 const marketCache: Map<string, GeneratedMarket[]> = new Map();
 
 export async function GET() {
-  const filings = await fetchFilingPulse(15);
+  const result = await fetchFilingPulse(15);
   
   const allMarkets: (GeneratedMarket & { generatedFrom: string; sentiment: number })[] = [];
   
-  for (const filing of filings.slice(0, 8)) {
+  for (const filing of result.filings.slice(0, 8)) {
     if (marketCache.has(filing.id)) {
       const cachedMarkets = marketCache.get(filing.id)!;
       cachedMarkets.forEach((m) => {
@@ -49,5 +49,5 @@ export async function GET() {
 
   allMarkets.sort((a, b) => b.confidenceFromFiling - a.confidenceFromFiling);
 
-  return Response.json({ markets: allMarkets });
+  return Response.json({ markets: allMarkets, source: result.source, error: result.error });
 }

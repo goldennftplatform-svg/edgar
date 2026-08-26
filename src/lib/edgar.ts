@@ -12,7 +12,13 @@ export interface Filing {
   keywords: string[];
 }
 
-export async function fetchFilingPulse(count = 20): Promise<Filing[]> {
+export interface FetchResult {
+  filings: Filing[];
+  source: "edgar" | "mock";
+  error?: string;
+}
+
+export async function fetchFilingPulse(count = 20): Promise<FetchResult> {
   const queries = [
     "material definitive agreement",
     "unregistered sales of equity securities",
@@ -44,15 +50,20 @@ export async function fetchFilingPulse(count = 20): Promise<Filing[]> {
             headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
             signal: AbortSignal.timeout(8000),
           }
-        ).then((r) => r.json())
+        ).then((r) => {
+          if (!r.ok) throw new Error(`EDGAR ${r.status}`);
+          return r.json();
+        })
       )
     );
 
     const seen = new Set<string>();
     const all: Filing[] = [];
+    let successCount = 0;
 
     for (const r of results) {
       if (r.status !== "fulfilled") continue;
+      successCount++;
       const data = r.value as Record<string, unknown>;
       const hits = (data.hits as Record<string, unknown>)?.hits as Array<Record<string, unknown>> | undefined;
       if (!hits) continue;
@@ -81,10 +92,18 @@ export async function fetchFilingPulse(count = 20): Promise<Filing[]> {
       }
     }
 
-    all.sort((a, b) => b.impactScore - a.impactScore || b.date.localeCompare(a.date));
-    return all.length > 0 ? all.slice(0, count) : getMockFilings();
-  } catch {
-    return getMockFilings();
+    if (all.length > 0) {
+      all.sort((a, b) => b.impactScore - a.impactScore || b.date.localeCompare(a.date));
+      return { filings: all.slice(0, count), source: "edgar" };
+    }
+
+    if (successCount > 0) {
+      return { filings: getMockFilings(count), source: "mock", error: "EDGAR returned no results" };
+    }
+
+    return { filings: getMockFilings(count), source: "mock", error: "EDGAR API unreachable" };
+  } catch (e) {
+    return { filings: getMockFilings(count), source: "mock", error: String(e) };
   }
 }
 
@@ -116,7 +135,7 @@ function scoreImpact(formType: string, keywords: string[]): number {
   return Math.min(100, score);
 }
 
-function getMockFilings(): Filing[] {
+function getMockFilings(count: number): Filing[] {
   const now = new Date();
   const mockData = [
     { type: "8-K", company: "Coinbase Global Inc.  (COIN)  (CIK 0001679788)", keywords: ["crypto", "digital asset", "blockchain"], impactScore: 85 },
@@ -130,7 +149,7 @@ function getMockFilings(): Filing[] {
     { type: "4", company: "ARK Investment Management  (CIK 0001649339)", keywords: ["bitcoin", "crypto"], impactScore: 60 },
     { type: "8-K", company: "Visa Inc.  (V)  (CIK 0001403161)", keywords: ["crypto", "digital asset", "token"], impactScore: 58 },
   ];
-  return mockData.map((m, i) => ({
+  return mockData.slice(0, count).map((m, i) => ({
     id: `mock-${Date.now()}-${i}`,
     ...m,
     cik: String(100000 + i * 1234),

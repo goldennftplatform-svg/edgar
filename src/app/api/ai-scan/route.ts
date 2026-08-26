@@ -6,13 +6,13 @@ export const dynamic = "force-dynamic";
 const analysisCache: Map<string, FilingIntelligence> = new Map();
 
 export async function GET() {
-  const filings = await fetchFilingPulse(15);
+  const result = await fetchFilingPulse(15);
   
-  const analyses: FilingIntelligence[] = [];
+  const analyses: (FilingIntelligence & { source: "edgar" | "mock" })[] = [];
   
-  for (const filing of filings.slice(0, 5)) {
+  for (const filing of result.filings.slice(0, 5)) {
     if (analysisCache.has(filing.id)) {
-      analyses.push(analysisCache.get(filing.id)!);
+      analyses.push({ ...analysisCache.get(filing.id)!, source: result.source });
       continue;
     }
     
@@ -27,11 +27,11 @@ export async function GET() {
       });
       
       analysisCache.set(filing.id, analysis);
-      analyses.push(analysis);
+      analyses.push({ ...analysis, source: result.source });
     } catch {
       continue;
     }
   }
 
-  return Response.json({ analyses });
+  return Response.json({ analyses, source: result.source, error: result.error });
 }

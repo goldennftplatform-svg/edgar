@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Clock, TrendingUp, TrendingDown, BarChart3, Zap, RefreshCw } from "lucide-react";
+import { Clock, TrendingUp, TrendingDown, BarChart3, Zap, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Market {
@@ -15,12 +15,13 @@ interface Market {
   resolutionSource: string;
   generatedFrom: string;
   sentiment: number;
-  createdAt: string;
-  lastUpdated: string;
+  confidenceFromFiling: number;
 }
 
 export default function MarketPerformance() {
   const [markets, setMarkets] = useState<Market[]>([]);
+  const [source, setSource] = useState<"edgar" | "mock" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -29,16 +30,16 @@ export default function MarketPerformance() {
     try {
       const res = await fetch("/api/market-pulse");
       const data = await res.json();
-      if (data.markets) {
-        setMarkets(data.markets);
-      }
-    } catch { /* */ }
+      setMarkets(data.markets || []);
+      setSource(data.source);
+      setError(data.error || null);
+    } catch (e) { setError(String(e)); }
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchMarkets(); }, []);
   useEffect(() => {
-    fetchMarkets();
-    intervalRef.current = setInterval(fetchMarkets, 30000);
+    intervalRef.current = setInterval(fetchMarkets, 45000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchMarkets]);
 
@@ -52,8 +53,6 @@ export default function MarketPerformance() {
     ? markets.reduce((sum, m) => sum + m.sentiment, 0) / markets.length 
     : 0;
 
-  const totalVolume = markets.reduce((sum, m) => sum + m.volume, 0);
-
   const highConfidenceMarkets = markets.filter(m => m.yesPrice > 0.7 || m.yesPrice < 0.3);
 
   return (
@@ -61,14 +60,19 @@ export default function MarketPerformance() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-semibold">Market Performance</span>
+          <span className="text-sm font-semibold">Generated Markets</span>
           <span className="text-[10px] font-mono text-zinc-500">{markets.length} markets</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
-            <span>avg sentiment {(avgSentiment * 100).toFixed(1)}%</span>
-            <span>·</span>
-            <span>total volume ${totalVolume.toLocaleString()}</span>
+          <div className="flex items-center gap-1.5">
+            {source === "edgar" ? (
+              <Wifi className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-amber-400" />
+            )}
+            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : "text-amber-400"}`}>
+              {source === "edgar" ? "LIVE" : "FALLBACK"}
+            </span>
           </div>
           <button
             onClick={fetchMarkets}
@@ -78,6 +82,12 @@ export default function MarketPerformance() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+          <p className="text-[10px] font-mono text-amber-400">⚠ {error}</p>
+        </div>
+      )}
 
       <div className="px-4 py-2 border-b border-zinc-800/50">
         <div className="flex items-center gap-2">
@@ -106,8 +116,8 @@ export default function MarketPerformance() {
         ) : filteredMarkets.length === 0 ? (
           <div className="p-8 text-center text-zinc-500 text-sm">
             <BarChart3 className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
-            <p className="font-medium mb-1">No markets found</p>
-            <p className="text-xs text-zinc-600">Markets will appear as filings are analyzed</p>
+            <p className="font-medium mb-1">No markets generated</p>
+            <p className="text-xs text-zinc-600">Markets appear as filings are analyzed</p>
           </div>
         ) : (
           <div className="divide-y divide-zinc-800/50">
@@ -139,14 +149,6 @@ export default function MarketPerformance() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[10px] font-mono text-zinc-500 mb-0.5">
-                        vol ${market.volume.toLocaleString()}
-                      </p>
-                      <p className="text-[9px] font-mono text-zinc-600">
-                        {formatDistanceToNow(new Date(market.lastUpdated), { addSuffix: true })}
-                      </p>
-                    </div>
                   </div>
                   
                   <div className="flex items-center gap-4">
@@ -175,8 +177,6 @@ export default function MarketPerformance() {
                   
                   <div className="mt-2 flex items-center gap-2 text-[9px] font-mono text-zinc-600">
                     <span>from: {market.generatedFrom.split("(")[0].trim()}</span>
-                    <span>·</span>
-                    <span>resolution: {market.resolutionSource}</span>
                   </div>
                 </div>
               );
