@@ -5,10 +5,9 @@ import {
   FileText, Activity, Brain, GitBranch, Zap,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
-import FilingStream from "@/components/FilingStream";
-import MarketTracker from "@/components/MarketTracker";
-import AIScan from "@/components/AIScan";
-import CorrelationView from "@/components/CorrelationView";
+import FilingIngest from "@/components/FilingIngest";
+import MagmaAnalysis from "@/components/MagmaAnalysis";
+import MarketPerformance from "@/components/MarketPerformance";
 import AlertPanel from "@/components/AlertPanel";
 
 type Tab = "pipeline" | "filings" | "markets" | "ai";
@@ -33,8 +32,8 @@ export default function Home() {
           <span className="text-xs text-zinc-500">watch</span>
         </div>
         <div className="flex items-center gap-4 text-[10px] font-mono text-zinc-500">
-          <span>SEC EDGAR → Prediction Markets</span>
-          <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">LOCAL</span>
+          <span>SEC EDGAR → Magma → Prediction Markets</span>
+          <span className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded">VERCEL</span>
         </div>
       </header>
 
@@ -69,27 +68,27 @@ export default function Home() {
           {activeTab === "pipeline" && (
             <div className="grid grid-cols-1 lg:grid-cols-3 h-full divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
               <div className="overflow-hidden flex flex-col min-h-0">
-                <FilingStream />
+                <FilingIngest />
               </div>
               <div className="overflow-hidden flex flex-col min-h-0">
-                <CorrelationView />
+                <MagmaAnalysis />
               </div>
               <div className="overflow-hidden flex flex-col min-h-0">
-                <MarketTracker />
+                <MarketPerformance />
               </div>
             </div>
           )}
 
           {activeTab === "filings" && (
-            <div className="h-full overflow-hidden"><FilingStream /></div>
+            <div className="h-full overflow-hidden"><FilingIngest /></div>
           )}
 
           {activeTab === "markets" && (
-            <div className="h-full overflow-hidden"><MarketTracker /></div>
+            <div className="h-full overflow-hidden"><MarketPerformance /></div>
           )}
 
           {activeTab === "ai" && (
-            <div className="h-full overflow-hidden"><AIScan /></div>
+            <div className="h-full overflow-hidden"><MagmaAnalysis /></div>
           )}
         </main>
       </div>

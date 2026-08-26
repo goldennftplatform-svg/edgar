@@ -1,4 +1,4 @@
-const USER_AGENT = "MetapWatch/1.0 (local-dev; mailto:dev@metap.watch)";
+const USER_AGENT = "EdgarWatch/1.0 (local-dev; mailto:dev@edgar.watch)";
 
 export interface Filing {
   id: string;
@@ -12,27 +12,24 @@ export interface Filing {
   keywords: string[];
 }
 
-const HIGH_IMPACT_TYPES = ["8-K", "SC 13D", "SC 13G", "S-1", "FORM D"];
-const MEDIUM_IMPACT_TYPES = ["10-K", "10-Q", "DEF 14A", "11-K"];
-
-export async function fetchFilingPulse(count = 30): Promise<Filing[]> {
+export async function fetchFilingPulse(count = 20): Promise<Filing[]> {
   const queries = [
-    "pursuant to this agreement",
     "material definitive agreement",
-    "termination of material definitive agreement",
     "unregistered sales of equity securities",
     "regulation fd disclosure",
-    "financial statements and exhibits",
-    "entry into a material definitive agreement",
-    "global distributed ledger",
     "digital asset",
     "bitcoin",
     "ethereum",
     "solana",
     "blockchain",
     "token",
-    "initial coin offering",
+    "global distributed ledger",
+    "entry into a material definitive agreement",
+    "financial statements and exhibits",
     "securities offering",
+    "annual report",
+    "quarterly report",
+    "current report",
   ];
 
   const today = getToday();
@@ -67,7 +64,6 @@ export async function fetchFilingPulse(count = 30): Promise<Filing[]> {
         const form = (src?.form as string) || (src?.root_forms as string[])?.[0] || "Unknown";
         const names = src?.display_names as string[] | undefined;
         const ciks = src?.ciks as string[] | undefined;
-
         const keywords = extractKeywords(JSON.stringify(src));
         const impactScore = scoreImpact(form, keywords);
 
@@ -106,52 +102,45 @@ function extractKeywords(text: string): string[] {
 
 function scoreImpact(formType: string, keywords: string[]): number {
   let score = 0;
-  if (HIGH_IMPACT_TYPES.includes(formType)) score += 60;
-  else if (MEDIUM_IMPACT_TYPES.includes(formType)) score += 30;
+  if (["8-K", "SC 13D", "SC 13G", "S-1", "FORM D"].includes(formType)) score += 60;
+  else if (["10-K", "10-Q", "DEF 14A"].includes(formType)) score += 30;
   else score += 10;
 
-  const highImpactKw = ["bankruptcy", "fraud", "SEC investigation", "material weakness", "going concern", "delisting", "restatement"];
-  const midImpactKw = ["acquisition", "merger", "crypto", "bitcoin", "ethereum", "solana", "blockchain", "token", "digital asset", "tariff"];
+  const hi = ["bankruptcy", "fraud", "SEC investigation", "material weakness", "going concern", "delisting", "restatement"];
+  const mid = ["acquisition", "merger", "crypto", "bitcoin", "ethereum", "solana", "blockchain", "token", "digital asset", "tariff"];
   for (const kw of keywords) {
-    if (highImpactKw.includes(kw)) score += 25;
-    else if (midImpactKw.includes(kw)) score += 10;
+    if (hi.includes(kw)) score += 25;
+    else if (mid.includes(kw)) score += 10;
     else score += 3;
   }
-
   return Math.min(100, score);
 }
 
 function getMockFilings(): Filing[] {
   const now = new Date();
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getTime() - i * 3600000 * 2);
-    const types = ["8-K", "10-K", "10-Q", "4", "SC 13D", "S-1"];
-    const companies = [
-      "Coinbase Global Inc.", "MicroStrategy Inc.", "Riot Platforms Inc.",
-      "Marathon Digital Holdings", "Galaxy Digital Holdings", "Block Inc.",
-      "PayPal Holdings Inc.", "Visa Inc.", "Mastercard Inc.", "Solana Labs",
-    ];
-    const t = types[i % types.length];
-    return {
-      id: `mock-${Date.now()}-${i}`,
-      type: t,
-      company: companies[i % companies.length],
-      cik: String(100000 + i * 1234),
-      date: d.toISOString().split("T")[0],
-      description: `${t} filing — ${["material event", "annual report", "quarterly update", "insider transaction", "ownership change", "registration"][i % 6]}`,
-      url: "#",
-      impactScore: Math.floor(30 + Math.random() * 70),
-      keywords: ["crypto", "digital asset"].slice(0, 1 + (i % 2)),
-    };
-  });
+  const mockData = [
+    { type: "8-K", company: "Coinbase Global Inc.  (COIN)  (CIK 0001679788)", keywords: ["crypto", "digital asset", "blockchain"], impactScore: 85 },
+    { type: "10-K", company: "MicroStrategy Inc.  (MSTR)  (CIK 0001050446)", keywords: ["bitcoin", "crypto", "digital asset"], impactScore: 78 },
+    { type: "8-K", company: "Riot Platforms Inc.  (RIOT)  (CIK 0001167419)", keywords: ["bitcoin", "crypto"], impactScore: 72 },
+    { type: "SC 13D", company: "Galaxy Digital Holdings  (GLXY)  (CIK 0001830681)", keywords: ["crypto", "bitcoin"], impactScore: 70 },
+    { type: "S-1", company: "Solana Labs  (SOL)  (CIK 0002018938)", keywords: ["solana", "blockchain", "token"], impactScore: 82 },
+    { type: "8-K", company: "Block Inc.  (SQ)  (CIK 0001512673)", keywords: ["bitcoin", "crypto", "digital asset"], impactScore: 68 },
+    { type: "10-Q", company: "PayPal Holdings Inc.  (PYPL)  (CIK 0001633917)", keywords: ["crypto", "token"], impactScore: 55 },
+    { type: "8-K", company: "JPMorgan Chase & Co.  (JPM)  (CIK 0000019617)", keywords: ["tariff", "regulation"], impactScore: 65 },
+    { type: "4", company: "ARK Investment Management  (CIK 0001649339)", keywords: ["bitcoin", "crypto"], impactScore: 60 },
+    { type: "8-K", company: "Visa Inc.  (V)  (CIK 0001403161)", keywords: ["crypto", "digital asset", "token"], impactScore: 58 },
+  ];
+  return mockData.map((m, i) => ({
+    id: `mock-${Date.now()}-${i}`,
+    ...m,
+    cik: String(100000 + i * 1234),
+    date: new Date(now.getTime() - i * 3600000 * 3).toISOString().split("T")[0],
+    description: `${m.type} — ${m.keywords.join(", ")}`,
+    url: "#",
+  }));
 }
 
-function getToday(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
+function getToday(): string { return new Date().toISOString().split("T")[0]; }
 function getDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split("T")[0];
+  const d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().split("T")[0];
 }
