@@ -1,69 +1,100 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import {
+  FileText, Activity, Brain, GitBranch, Zap,
+  ChevronLeft, ChevronRight,
+} from "lucide-react";
+import FilingStream from "@/components/FilingStream";
+import MarketTracker from "@/components/MarketTracker";
+import AIScan from "@/components/AIScan";
+import CorrelationView from "@/components/CorrelationView";
+import AlertPanel from "@/components/AlertPanel";
+
+type Tab = "pipeline" | "filings" | "markets" | "ai";
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "pipeline", label: "Pipeline", icon: GitBranch },
+  { id: "filings", label: "Filings", icon: FileText },
+  { id: "markets", label: "Markets", icon: Activity },
+  { id: "ai", label: "AI Scan", icon: Brain },
+];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>("pipeline");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100">
+      <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/80">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-indigo-400" />
+          <span className="text-sm font-bold tracking-tight">metap</span>
+          <span className="text-xs text-zinc-500">watch</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="flex items-center gap-4 text-[10px] font-mono text-zinc-500">
+          <span>SEC EDGAR → Prediction Markets</span>
+          <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">LOCAL</span>
         </div>
-      </main>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <aside className={`flex flex-col border-r border-zinc-800 bg-zinc-900/50 transition-all duration-200 ${sidebarCollapsed ? "w-12" : "w-36"}`}>
+          <div className="flex items-center justify-end px-2 py-3">
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-1 hover:bg-zinc-800 rounded">
+              {sidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronLeft className="w-3.5 h-3.5 text-zinc-400" />}
+            </button>
+          </div>
+          <nav className="flex-1 py-1">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${
+                    active ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!sidebarCollapsed && <span>{tab.label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main className="flex-1 overflow-hidden">
+          {activeTab === "pipeline" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 h-full divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
+              <div className="overflow-hidden flex flex-col min-h-0">
+                <FilingStream />
+              </div>
+              <div className="overflow-hidden flex flex-col min-h-0">
+                <CorrelationView />
+              </div>
+              <div className="overflow-hidden flex flex-col min-h-0">
+                <MarketTracker />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "filings" && (
+            <div className="h-full overflow-hidden"><FilingStream /></div>
+          )}
+
+          {activeTab === "markets" && (
+            <div className="h-full overflow-hidden"><MarketTracker /></div>
+          )}
+
+          {activeTab === "ai" && (
+            <div className="h-full overflow-hidden"><AIScan /></div>
+          )}
+        </main>
+      </div>
+
+      <AlertPanel />
     </div>
   );
 }
