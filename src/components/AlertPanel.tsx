@@ -49,6 +49,22 @@ export default function AlertPanel() {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const prevCountRef = useRef(0);
 
+  function playAlertSound() {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch { /* */ }
+  }
+
   const loadAlerts = useCallback(async () => {
     try {
       const res = await fetch("/api/alerts");
@@ -75,9 +91,9 @@ export default function AlertPanel() {
   }, [soundEnabled]);
 
   useEffect(() => {
-    loadAlerts();
+    const t = setTimeout(() => { loadAlerts(); }, 0);
     const iv = setInterval(loadAlerts, 30000);
-    return () => clearInterval(iv);
+    return () => { clearTimeout(t); clearInterval(iv); };
   }, [loadAlerts]);
 
   useEffect(() => {
@@ -85,22 +101,6 @@ export default function AlertPanel() {
       Notification.requestPermission();
     }
   }, []);
-
-  function playAlertSound() {
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.3);
-    } catch { /* */ }
-  }
 
   async function markRead(id: string) {
     setAlerts((prev) => prev.map((a) => a.id === id ? { ...a, read: true } : a));

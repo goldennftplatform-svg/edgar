@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Clock, TrendingUp, TrendingDown, BarChart3, Zap, RefreshCw, Wifi, WifiOff } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
 interface Market {
   id: string;
@@ -37,10 +36,10 @@ export default function MarketPerformance() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchMarkets(); }, []);
   useEffect(() => {
+    const t = setTimeout(() => { fetchMarkets(); }, 0);
     intervalRef.current = setInterval(fetchMarkets, 45000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { clearTimeout(t); if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchMarkets]);
 
   const filteredMarkets = selectedCategory === "all" 
@@ -48,10 +47,6 @@ export default function MarketPerformance() {
     : markets.filter(m => m.category === selectedCategory);
 
   const categories = ["all", ...new Set(markets.map(m => m.category))];
-
-  const avgSentiment = markets.length > 0 
-    ? markets.reduce((sum, m) => sum + m.sentiment, 0) / markets.length 
-    : 0;
 
   const highConfidenceMarkets = markets.filter(m => m.yesPrice > 0.7 || m.yesPrice < 0.3);
 

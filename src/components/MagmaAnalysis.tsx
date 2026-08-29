@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  FileText, Clock, TrendingUp, AlertCircle, ChevronDown, ChevronRight,
-  RefreshCw, Zap, Wifi, WifiOff,
+  FileText, Clock, AlertCircle, ChevronDown, ChevronRight,
+  RefreshCw, Wifi, WifiOff,
 } from "lucide-react";
 import type { FilingIntelligence } from "@/lib/magma";
-import { formatDistanceToNow } from "date-fns";
 
 export default function MagmaAnalysis() {
   const [filings, setFilings] = useState<FilingIntelligence[]>([]);
@@ -48,10 +47,10 @@ export default function MagmaAnalysis() {
     setScanRunning(false);
   }, [scanRunning]);
 
-  useEffect(() => { runScan(); }, []);
   useEffect(() => {
+    const t = setTimeout(() => { runScan(); }, 0);
     intervalRef.current = setInterval(runScan, 60000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { clearTimeout(t); if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [runScan]);
 
   function toggleExpand(id: string) {

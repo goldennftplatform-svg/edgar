@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  FileText, Clock, TrendingUp, AlertCircle, ArrowRight, ExternalLink,
+  FileText, ArrowRight, ExternalLink,
   RefreshCw, Wifi, WifiOff,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -40,10 +40,10 @@ export default function FilingIngest() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchFilings(); }, []);
   useEffect(() => {
+    const t = setTimeout(() => { fetchFilings(); }, 0);
     intervalRef.current = setInterval(fetchFilings, 30000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { clearTimeout(t); if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchFilings]);
 
   const impactColor = (score: number) => {
