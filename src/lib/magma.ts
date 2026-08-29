@@ -1,5 +1,16 @@
+import { createStackNetProvider, generateObject } from "@stacknet/sdk";
+
 const GEOFF_API_KEY = process.env.GEOFF_API_KEY || "";
-const GEOFF_BASE = "https://api.geoff.ai/v1";
+const GEOFF_BASE = "https://geoff.ai/api/v1";
+
+const magmaProvider = GEOFF_API_KEY
+  ? createStackNetProvider({
+      name: "geoff",
+      baseURL: GEOFF_BASE,
+      apiKey: GEOFF_API_KEY,
+      supportsStructuredOutputs: true,
+    })
+  : null;
 
 export interface FilingIntelligence {
   filingId: string;
@@ -60,6 +71,8 @@ async function callMagma(filing: {
   description: string;
   keywords: string[];
 }): Promise<FilingIntelligence> {
+  if (!magmaProvider) throw new Error("Magma provider not configured");
+
   const prompt = `You are an expert SEC filing analyst and prediction market creator.
 
 Analyze this SEC filing and generate prediction markets based on its contents:
@@ -102,35 +115,25 @@ Return a JSON object with this EXACT structure:
 
 Generate 2-4 prediction markets per filing. Make them specific, tradeable, and directly tied to what the filing reveals.`;
 
-  const res = await fetch(`${GEOFF_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${GEOFF_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "magma",
-      messages: [
-        { role: "system", content: "You are Magma, an expert SEC filing analyst and prediction market generator. Always return valid JSON." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 1500,
-    }),
-    signal: AbortSignal.timeout(20000),
+  const model = magmaProvider("magma");
+  const result = await generateObject({
+    model,
+    output: "no-schema",
+    system: "You are Magma, an expert SEC filing analyst and prediction market generator. Always return valid JSON matching the requested structure.",
+    prompt,
+    temperature: 0.3,
+    maxOutputTokens: 1500,
   });
 
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+  const parsed = (result.object ?? {}) as Record<string, unknown>;
 
   return {
     filingId: filing.id,
     ...parsed,
-    generatedMarkets: (parsed.generatedMarkets || []).map((m: Record<string, unknown>, i: number) => ({
+    generatedMarkets: (parsed.generatedMarkets as Record<string, unknown>[] || []).map((m: Record<string, unknown>, i: number) => ({
       id: `gen-${filing.id}-${i}`,
       question: m.question as string,
-      category: (m.category as string) || "binary",
+      category: (m.category as GeneratedMarket["category"]) || "binary",
       yesInitial: (m.yesInitial as number) || 0.5,
       noInitial: (m.noInitial as number) || 0.5,
       timeHorizon: (m.timeHorizon as string) || "90d",
@@ -139,7 +142,7 @@ Generate 2-4 prediction markets per filing. Make them specific, tradeable, and d
       relatedEntities: (m.relatedEntities as string[]) || [],
       confidenceFromFiling: (m.confidenceFromFiling as number) || 0.5,
     })),
-  };
+  } as FilingIntelligence;
 }
 
 function generateLocalIntelligence(filing: {
