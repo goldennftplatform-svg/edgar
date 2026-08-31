@@ -84,18 +84,20 @@ export default function MagmaAnalysis() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${source === "edgar" ? "bg-emerald-400 animate-pulse" : source === "mock" ? "bg-amber-400" : "bg-zinc-600"}`} />
-          <span className="text-sm font-semibold">Magma Analysis</span>
+          <span className="text-sm font-semibold">Magma Reader</span>
           <span className="text-[10px] font-mono text-zinc-500">{filings.length} analyzed</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             {source === "edgar" ? (
               <Wifi className="w-3 h-3 text-emerald-400" />
-            ) : (
+            ) : source === "mock" ? (
               <WifiOff className="w-3 h-3 text-amber-400" />
+            ) : (
+              <Clock className="w-3 h-3 text-zinc-500 animate-spin" />
             )}
-            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : "text-amber-400"}`}>
-              {source === "edgar" ? "LIVE" : "FALLBACK"}
+            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : source === "mock" ? "text-amber-400" : "text-zinc-500"}`}>
+              {source === "edgar" ? "LIVE" : source === "mock" ? "FALLBACK" : "SYNCING"}
             </span>
           </div>
           {lastScan && <span className="text-[9px] font-mono text-zinc-600">scanned {lastScan}</span>}
@@ -120,7 +122,7 @@ export default function MagmaAnalysis() {
         {filings.length === 0 && !scanRunning && (
           <div className="p-8 text-center text-zinc-500 text-sm">
             <FileText className="w-8 h-8 mx-auto mb-3 text-zinc-600" />
-            <p className="font-medium mb-1">Analyzing filings...</p>
+            <p className="font-medium mb-1">Waiting for the reader...</p>
           </div>
         )}
 

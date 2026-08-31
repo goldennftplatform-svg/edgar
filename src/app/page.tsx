@@ -10,6 +10,7 @@ import MagmaAnalysis from "@/components/MagmaAnalysis";
 import MarketPerformance from "@/components/MarketPerformance";
 import AlertPanel from "@/components/AlertPanel";
 import PaperMintCard from "@/components/PaperMintCard";
+import MagmaReaderCard from "@/components/MagmaReaderCard";
 
 type Tab = "pipeline" | "filings" | "markets" | "ai";
 
@@ -65,10 +66,14 @@ export default function Home() {
           </nav>
         </aside>
 
-        <main className="flex-1 overflow-hidden">
-          <PaperMintCard />
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="grid grid-cols-1 gap-3 px-4 pt-3 lg:grid-cols-2">
+            <PaperMintCard />
+            <MagmaReaderCard />
+          </div>
+          <div className="flex-1 overflow-hidden">
           {activeTab === "pipeline" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 h-[calc(100%-72px)] divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
+            <div className="grid grid-cols-1 lg:grid-cols-3 h-full divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
               <div className="overflow-hidden flex flex-col min-h-0">
                 <FilingIngest />
               </div>
@@ -82,16 +87,17 @@ export default function Home() {
           )}
 
           {activeTab === "filings" && (
-            <div className="h-[calc(100%-72px)] overflow-hidden"><FilingIngest /></div>
+            <div className="h-full overflow-hidden"><FilingIngest /></div>
           )}
 
           {activeTab === "markets" && (
-            <div className="h-[calc(100%-72px)] overflow-hidden"><MarketPerformance /></div>
+            <div className="h-full overflow-hidden"><MarketPerformance /></div>
           )}
 
           {activeTab === "ai" && (
-            <div className="h-[calc(100%-72px)] overflow-hidden"><MagmaAnalysis /></div>
+            <div className="h-full overflow-hidden"><MagmaAnalysis /></div>
           )}
+          </div>
         </main>
       </div>
 

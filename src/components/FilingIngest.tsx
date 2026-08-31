@@ -82,11 +82,13 @@ export default function FilingIngest() {
           <div className="flex items-center gap-1.5">
             {source === "edgar" ? (
               <Wifi className="w-3 h-3 text-emerald-400" />
-            ) : (
+            ) : source === "mock" ? (
               <WifiOff className="w-3 h-3 text-amber-400" />
+            ) : (
+              <RefreshCw className="w-3 h-3 text-zinc-500 animate-spin" />
             )}
-            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : "text-amber-400"}`}>
-              {source === "edgar" ? "LIVE" : "FALLBACK"}
+            <span className={`text-[9px] font-mono ${source === "edgar" ? "text-emerald-400" : source === "mock" ? "text-amber-400" : "text-zinc-500"}`}>
+              {source === "edgar" ? "LIVE" : source === "mock" ? "FALLBACK" : "SYNCING"}
             </span>
           </div>
           {lastFetch && <span className="text-[9px] font-mono text-zinc-600">fetched {lastFetch}</span>}

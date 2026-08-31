@@ -7,7 +7,7 @@ export default function PaperMintCard() {
   const [refreshes, setRefreshes] = useState(0);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"live" | "fallback" | null>(null);
+  const [source, setSource] = useState<"active" | "syncing" | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadPaperMint = useCallback(async () => {
@@ -19,9 +19,9 @@ export default function PaperMintCard() {
       localStorage.setItem("paper-mint-refreshes", String(current));
       setRefreshes(current);
       setLastSeen(new Date().toLocaleTimeString());
-      setSource("live");
+      setSource("active");
     } catch {
-      setSource("fallback");
+      setSource("syncing");
     } finally {
       setLoading(false);
     }
@@ -42,12 +42,12 @@ export default function PaperMintCard() {
   }, [loadPaperMint]);
 
   return (
-    <div className="mx-4 mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 shadow-sm shadow-emerald-950/20">
+    <div className="h-full rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 shadow-sm shadow-emerald-950/20">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Coins className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-emerald-100">PAPER minted</p>
+            <p className="text-sm font-semibold text-emerald-100">Paper Reader</p>
             <p className="text-[10px] font-mono text-emerald-300/70 truncate">
               live mint activity counter
             </p>
@@ -60,13 +60,13 @@ export default function PaperMintCard() {
             <p className="text-[9px] font-mono text-emerald-300/70">observed refreshes</p>
           </div>
           <div className="flex items-center gap-1.5">
-            {source === "live" ? (
+            {source === "active" ? (
               <Wifi className="w-3 h-3 text-emerald-400" />
             ) : (
               <WifiOff className="w-3 h-3 text-amber-400" />
             )}
-            <span className={`text-[9px] font-mono ${source === "live" ? "text-emerald-400" : "text-amber-400"}`}>
-              {source === "live" ? "LIVE" : "FALLBACK"}
+            <span className={`text-[9px] font-mono ${source === "active" ? "text-emerald-400" : "text-amber-400"}`}>
+              {source === "active" ? "ACTIVE" : "SYNCING"}
             </span>
           </div>
           <button
