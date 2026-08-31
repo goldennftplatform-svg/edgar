@@ -24,16 +24,24 @@ export default function MarketPerformance() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestSeqRef = useRef(0);
 
   const fetchMarkets = useCallback(async () => {
+    const requestSeq = ++requestSeqRef.current;
     try {
       const res = await fetch("/api/market-pulse");
       const data = await res.json();
+      if (requestSeq !== requestSeqRef.current) return;
       setMarkets(data.markets || []);
       setSource(data.source);
       setError(data.error || null);
-    } catch (e) { setError(String(e)); }
-    setLoading(false);
+    } catch (e) {
+      if (requestSeq !== requestSeqRef.current) return;
+      setSource(null);
+      setError(String(e));
+    } finally {
+      if (requestSeq === requestSeqRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

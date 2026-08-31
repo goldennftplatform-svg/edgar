@@ -27,17 +27,25 @@ export default function FilingIngest() {
   const [lastFetch, setLastFetch] = useState<string | null>(null);
   const [selectedFiling, setSelectedFiling] = useState<Filing | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestSeqRef = useRef(0);
 
   const fetchFilings = useCallback(async () => {
+    const requestSeq = ++requestSeqRef.current;
     try {
       const res = await fetch("/api/filing-pulse");
       const data = await res.json();
+      if (requestSeq !== requestSeqRef.current) return;
       setFilings(data.filings || []);
       setSource(data.source);
       setError(data.error || null);
       setLastFetch(new Date().toLocaleTimeString());
-    } catch (e) { setError(String(e)); }
-    setLoading(false);
+    } catch (e) {
+      if (requestSeq !== requestSeqRef.current) return;
+      setSource(null);
+      setError(String(e));
+    } finally {
+      if (requestSeq === requestSeqRef.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

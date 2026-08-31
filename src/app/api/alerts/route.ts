@@ -1,5 +1,6 @@
 import { fetchFilingPulse } from "@/lib/edgar";
 import { analyzeFilingWithMagma } from "@/lib/magma";
+import { upsertFilings, upsertAlert, markAlertRead } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +22,18 @@ const alertHistory: Alert[] = [];
 
 export async function GET() {
   const result = await fetchFilingPulse(15);
-  
+  await upsertFilings(
+    result.filings.map((f) => ({ ...f, source: result.source }))
+  );
+
   const newAlerts: Alert[] = [];
-  
+
   for (const filing of result.filings.slice(0, 5)) {
     if (filing.impactScore < 30) continue;
-    
+
     const existingAlert = alertHistory.find((a) => a.filing?.type === filing.type && a.filing?.company === filing.company);
     if (existingAlert) continue;
-    
+
     try {
       const analysis = await analyzeFilingWithMagma({
         id: filing.id,
@@ -80,6 +84,21 @@ export async function GET() {
         read: false,
       };
       
+      await upsertAlert({
+        id: alert.id,
+        type: alert.type,
+        severity: alert.severity,
+        title: alert.title,
+        body: alert.body,
+        filingId: filing.id,
+        filingType: alert.filing?.type,
+        filingCompany: alert.filing?.company,
+        impactScore: alert.filing?.impactScore,
+        matchedQuestion: alert.matchedMarket?.question,
+        matchScore: alert.matchScore,
+        direction: alert.direction,
+      });
+
       newAlerts.push(alert);
       alertHistory.unshift(alert);
     } catch {
@@ -102,6 +121,7 @@ export async function POST(request: Request) {
     if (alert) {
       alert.read = true;
     }
+    await markAlertRead(body.id);
     return Response.json({ ok: true });
   }
   

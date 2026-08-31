@@ -48,6 +48,7 @@ export default function AlertPanel() {
   const [expanded, setExpanded] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const prevCountRef = useRef(0);
+  const requestSeqRef = useRef(0);
 
   function playAlertSound() {
     try {
@@ -66,9 +67,11 @@ export default function AlertPanel() {
   }
 
   const loadAlerts = useCallback(async () => {
+    const requestSeq = ++requestSeqRef.current;
     try {
       const res = await fetch("/api/alerts");
       const data = await res.json();
+      if (requestSeq !== requestSeqRef.current) return;
       const history: Alert[] = data.history || [];
       setAlerts(history);
       const unread = history.filter((a: Alert) => !a.read).length;
@@ -87,7 +90,9 @@ export default function AlertPanel() {
         }
       }
       prevCountRef.current = unread;
-    } catch { /* */ }
+    } catch {
+      if (requestSeq !== requestSeqRef.current) return;
+    }
   }, [soundEnabled]);
 
   useEffect(() => {

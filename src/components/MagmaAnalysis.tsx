@@ -15,17 +15,19 @@ export default function MagmaAnalysis() {
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestSeqRef = useRef(0);
 
   const runScan = useCallback(async () => {
     if (scanRunning) return;
     setScanRunning(true);
+    const requestSeq = ++requestSeqRef.current;
     try {
       const aRes = await fetch("/api/ai-scan");
       const analysisData = await aRes.json();
+      if (requestSeq !== requestSeqRef.current) return;
       setSource(analysisData.source);
       setError(analysisData.error || null);
-      if (analysisData.analyses?.length > 0) {
-        setFilings(analysisData.analyses.map((a: Record<string, unknown>) => ({
+      setFilings((analysisData.analyses || []).map((a: Record<string, unknown>) => ({
           filingId: a.filingId,
           company: a.company,
           formType: a.formType,
@@ -41,10 +43,14 @@ export default function MagmaAnalysis() {
           entities: a.entities || [],
           generatedMarkets: a.generatedMarkets || [],
         } as FilingIntelligence)));
-      }
       setLastScan(new Date().toLocaleTimeString());
-    } catch (e) { setError(String(e)); }
-    setScanRunning(false);
+    } catch (e) {
+      if (requestSeq !== requestSeqRef.current) return;
+      setSource(null);
+      setError(String(e));
+    } finally {
+      if (requestSeq === requestSeqRef.current) setScanRunning(false);
+    }
   }, [scanRunning]);
 
   useEffect(() => {

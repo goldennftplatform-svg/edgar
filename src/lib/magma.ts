@@ -1,4 +1,9 @@
 import { createStackNetProvider, generateObject } from "@stacknet/sdk";
+import {
+  parseFilingIntelligence,
+  type FilingIntelligence,
+  type GeneratedMarket,
+} from "@/lib/schema";
 
 const GEOFF_API_KEY = process.env.GEOFF_API_KEY || "";
 const GEOFF_BASE = "https://geoff.ai/api/v1";
@@ -12,38 +17,8 @@ const magmaProvider = GEOFF_API_KEY
     })
   : null;
 
-export interface FilingIntelligence {
-  filingId: string;
-  company: string;
-  formType: string;
-  filedDate: string;
-
-  entities: string[];
-  sentiment: number;
-  sentimentLabel: "very_bearish" | "bearish" | "neutral" | "bullish" | "very_bullish";
-  riskScore: number;
-  materialityScore: number;
-
-  keyFindings: string[];
-  financialSignals: string[];
-  regulatorySignals: string[];
-  marketMovingEvents: string[];
-
-  generatedMarkets: GeneratedMarket[];
-}
-
-export interface GeneratedMarket {
-  id: string;
-  question: string;
-  category: "binary" | "range" | "outcome";
-  yesInitial: number;
-  noInitial: number;
-  timeHorizon: string;
-  resolutionSource: string;
-  reasoning: string;
-  relatedEntities: string[];
-  confidenceFromFiling: number;
-}
+export { type FilingIntelligence, type GeneratedMarket } from "@/lib/schema";
+export { generatedMarketSchema, filingIntelligenceSchema } from "@/lib/schema";
 
 export async function analyzeFilingWithMagma(filing: {
   id: string;
@@ -127,22 +102,17 @@ Generate 2-4 prediction markets per filing. Make them specific, tradeable, and d
 
   const parsed = (result.object ?? {}) as Record<string, unknown>;
 
-  return {
-    filingId: filing.id,
+  const intelligence = parseFilingIntelligence({
     ...parsed,
-    generatedMarkets: (parsed.generatedMarkets as Record<string, unknown>[] || []).map((m: Record<string, unknown>, i: number) => ({
-      id: `gen-${filing.id}-${i}`,
-      question: m.question as string,
-      category: (m.category as GeneratedMarket["category"]) || "binary",
-      yesInitial: (m.yesInitial as number) || 0.5,
-      noInitial: (m.noInitial as number) || 0.5,
-      timeHorizon: (m.timeHorizon as string) || "90d",
-      resolutionSource: (m.resolutionSource as string) || "SEC filings",
-      reasoning: (m.reasoning as string) || "",
-      relatedEntities: (m.relatedEntities as string[]) || [],
-      confidenceFromFiling: (m.confidenceFromFiling as number) || 0.5,
+    filingId: filing.id,
+    // The model may not emit stable ids for generated markets; assign our own.
+    generatedMarkets: ((parsed.generatedMarkets as Record<string, unknown>[] | undefined) ?? []).map((m, i) => ({
+      ...m,
+      id: (m.id as string) || `gen-${filing.id}-${i}`,
     })),
-  } as FilingIntelligence;
+  });
+
+  return intelligence;
 }
 
 function generateLocalIntelligence(filing: {
@@ -278,7 +248,7 @@ function generateLocalIntelligence(filing: {
     });
   }
 
-  return {
+  return parseFilingIntelligence({
     filingId: filing.id,
     company,
     formType: filing.type,
@@ -293,7 +263,7 @@ function generateLocalIntelligence(filing: {
     regulatorySignals,
     marketMovingEvents,
     generatedMarkets,
-  };
+  });
 }
 
 function getHorizon(h: string): string {

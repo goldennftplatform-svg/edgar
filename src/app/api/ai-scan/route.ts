@@ -1,5 +1,6 @@
 import { fetchFilingPulse } from "@/lib/edgar";
 import { analyzeFilingWithMagma, type FilingIntelligence } from "@/lib/magma";
+import { upsertFilings, upsertAnalysis } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -7,15 +8,18 @@ const analysisCache: Map<string, FilingIntelligence> = new Map();
 
 export async function GET() {
   const result = await fetchFilingPulse(15);
-  
+  await upsertFilings(
+    result.filings.map((f) => ({ ...f, source: result.source }))
+  );
+
   const analyses: (FilingIntelligence & { source: "edgar" | "mock" })[] = [];
-  
+
   for (const filing of result.filings.slice(0, 5)) {
     if (analysisCache.has(filing.id)) {
       analyses.push({ ...analysisCache.get(filing.id)!, source: result.source });
       continue;
     }
-    
+
     try {
       const analysis = await analyzeFilingWithMagma({
         id: filing.id,
@@ -25,8 +29,9 @@ export async function GET() {
         description: filing.description,
         keywords: filing.keywords,
       });
-      
+
       analysisCache.set(filing.id, analysis);
+      await upsertAnalysis(filing.id, analysis);
       analyses.push({ ...analysis, source: result.source });
     } catch {
       continue;
